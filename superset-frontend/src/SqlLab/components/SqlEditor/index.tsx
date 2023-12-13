@@ -782,6 +782,7 @@ const SqlEditor: React.FC<Props> = ({
               startQuery={startQuery}
             />
           )}
+          <span> this is editor section</span>
           <AceEditorWrapper
             autocomplete={autocompleteEnabled}
             onBlur={onSqlChanged}
@@ -790,6 +791,7 @@ const SqlEditor: React.FC<Props> = ({
             height={`${aceEditorHeight}px`}
             hotkeys={hotkeys}
           />
+          <div> this is editor section</div>
           {renderEditorBottomBar()}
         </div>
         <SouthPane
