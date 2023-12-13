@@ -796,7 +796,7 @@ const SqlEditor: React.FC<Props> = ({
           <Button
             buttonStyle="primary"
             buttonSize="small"
-            onClick={generateSQL()}
+            onClick={generateSQL}
             data-test="close-drill-by-modal"
           >
             {t('Generate')}
