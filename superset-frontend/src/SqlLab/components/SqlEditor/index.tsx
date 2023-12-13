@@ -108,6 +108,7 @@ import KeyboardShortcutButton, {
   KEY_MAP,
   KeyboardShortcut,
 } from '../KeyboardShortcutButton';
+import TextControl from 'src/explore/components/controls/TextControl';
 
 const bootstrapData = getBootstrapData();
 const scheduledQueriesConf = bootstrapData?.common?.conf?.SCHEDULED_QUERIES;
@@ -756,7 +757,10 @@ const SqlEditor: React.FC<Props> = ({
       </StyledToolbar>
     );
   };
-
+  const generateSQL = ()=>{
+    console.log('dlog - input box : ', document.querySelector('ai-assist-textbox-txt input'))
+    onSqlChanged('SELECT * from ABC')
+  }
   const queryPane = () => {
     const { aceEditorHeight, southPaneHeight } =
       getAceEditorAndSouthPaneHeights(height, northPercent, southPercent);
@@ -783,6 +787,22 @@ const SqlEditor: React.FC<Props> = ({
             />
           )}
           <span> this is editor section</span>
+          <div style="display:flex">
+          <TextControl
+                    class="ai-assist-textbox-txt"
+                    controlId="ai-assist-textbox"
+                    placeholder={t('Add query in natural human language')}
+                  />
+          <Button
+            buttonStyle="primary"
+            buttonSize="small"
+            onClick={generateSQL()}
+            data-test="close-drill-by-modal"
+          >
+            {t('Generate')}
+          </Button>
+          </div>
+         
           <AceEditorWrapper
             autocomplete={autocompleteEnabled}
             onBlur={onSqlChanged}
