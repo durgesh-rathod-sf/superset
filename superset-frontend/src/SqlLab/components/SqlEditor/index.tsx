@@ -787,7 +787,7 @@ const SqlEditor: React.FC<Props> = ({
             />
           )}
           <span> this is editor section</span>
-          <div style="display:flex">
+          <div style={{display:'flex'}}>
           <TextControl
                     className="ai-assist-textbox-txt"
                     controlId="ai-assist-textbox"
