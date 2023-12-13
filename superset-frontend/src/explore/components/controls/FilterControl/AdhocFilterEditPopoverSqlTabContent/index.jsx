@@ -77,7 +77,10 @@ export default class AdhocFilterEditPopoverSqlTabContent extends React.Component
     );
   }
 
+
+  // may need changes here
   onSqlExpressionChange(sqlExpression) {
+    console.log('dlog - sqlExpression: ',sqlExpression)
     this.props.onChange(
       this.props.adhocFilter.duplicateWith({
         sqlExpression,
@@ -88,6 +91,7 @@ export default class AdhocFilterEditPopoverSqlTabContent extends React.Component
 
   handleAceEditorRef(ref) {
     if (ref) {
+      console.log('dlog- aceEditorRef', aceEditorRef)
       this.aceEditorRef = ref;
     }
   }
@@ -135,6 +139,7 @@ export default class AdhocFilterEditPopoverSqlTabContent extends React.Component
           </span>
         </div>
         <div css={theme => ({ marginTop: theme.gridUnit * 4 })}>
+          this is sql editor
           <SQLEditor
             ref={this.handleAceEditorRef}
             keywords={keywords}
@@ -148,6 +153,7 @@ export default class AdhocFilterEditPopoverSqlTabContent extends React.Component
             className="filter-sql-editor"
             wrapEnabled
           />
+          this is sql editor
         </div>
       </span>
     );
