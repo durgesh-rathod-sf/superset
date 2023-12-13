@@ -789,7 +789,7 @@ const SqlEditor: React.FC<Props> = ({
           <span> this is editor section</span>
           <div style="display:flex">
           <TextControl
-                    class="ai-assist-textbox-txt"
+                    className="ai-assist-textbox-txt"
                     controlId="ai-assist-textbox"
                     placeholder={t('Add query in natural human language')}
                   />
