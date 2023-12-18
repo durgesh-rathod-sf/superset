@@ -389,7 +389,6 @@ zipp==3.15.0
     # via
     #   importlib-metadata
     #   importlib-resources
-
+farm-haystack==1.19.0
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
-farm-haystack==1.19.0
