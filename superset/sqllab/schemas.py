@@ -148,3 +148,11 @@ class SQLLabBootstrapSchema(Schema):
         values=fields.Nested(QueryResultSchema),
     )
     tab_state_ids = fields.List(fields.String())
+
+
+class TextToSQLPayloadSchema(Schema):
+    user_prompt_text: str
+
+
+class TextToSQLResponseSchema(Schema):
+    sql_query: str

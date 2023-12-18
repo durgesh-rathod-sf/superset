@@ -86,6 +86,11 @@ export const STOP_QUERY = 'STOP_QUERY';
 export const REQUEST_QUERY_RESULTS = 'REQUEST_QUERY_RESULTS';
 export const QUERY_SUCCESS = 'QUERY_SUCCESS';
 export const QUERY_FAILED = 'QUERY_FAILED';
+export const START_TEXT_TO_SQL = 'START_TEXT_TO_SQL';
+export const STOP_TEXT_TO_SQL = 'STOP_TEXT_TO_SQL';
+export const RUN_TEXT_TO_SQL = 'RUN_TEXT_TO_SQL';
+export const TEXT_TO_SQL_SUCCESS = 'TEXT_TO_SQL_SUCCESS';
+export const TEXT_TO_SQL_FAILED = 'TEXT_TO_SQL_FAILED';
 export const CLEAR_INACTIVE_QUERIES = 'CLEAR_INACTIVE_QUERIES';
 export const CLEAR_QUERY_RESULTS = 'CLEAR_QUERY_RESULTS';
 export const REMOVE_DATA_PREVIEW = 'REMOVE_DATA_PREVIEW';
@@ -279,7 +284,37 @@ export function stopQuery(query) {
 export function clearQueryResults(query) {
   return { type: CLEAR_QUERY_RESULTS, query };
 }
+export function textToSqlSuccess(user_promp_text, results) {
+  return { type: TEXT_TO_SQL_SUCCESS, user_promp_text, results };
+}
+export function stopTextToSql(user_promp_text) {
+  return { type: STOP_TEXT_TO_SQL, user_promp_text };
+}
+export function textToSqlFailed(user_promp_text, msg, link, errors) {
+  return function (dispatch) {
+    const eventData = {
+      has_err: true,
+      // start_offset: query.startDttm,
+      ts: new Date().getTime(),
+    };
+    errors?.forEach(({ error_type: errorType, extra }) => {
+      const messages = extra?.issue_codes?.map(({ message }) => message) || [
+        errorType,
+      ];
+      messages.forEach(message => {
+        dispatch(
+          logEvent(LOG_ACTIONS_SQLLAB_FETCH_FAILED_QUERY, {
+            ...eventData,
+            error_type: errorType,
+            error_details: message,
+          }),
+        );
+      });
+    });
 
+    dispatch({ type: TEXT_TO_SQL_FAILED, query, msg, link, errors });
+  };
+}
 export function removeDataPreview(table) {
   return { type: REMOVE_DATA_PREVIEW, table };
 }
@@ -316,7 +351,38 @@ export function fetchQueryResults(query, displayLimit) {
       );
   };
 }
+export function convertTextToSql(user_prompt_text){
+  return function (dispatch){
+    const postPayload = {
+      user_prompt_text: text
+    };
 
+    return SupersetClient.post({
+      endpoint: `/api/v1/sqllab/convert_text_to_sql`,
+      body: JSON.stringify(postPayload),
+      headers: { 'Content-Type': 'application/json' },
+      // parseMethod: 'json-bigint',
+    })
+      .then(({ json }) => {
+        // if (!query.runAsync) {
+          dispatch(textToSqlSuccess(user_prompt_text, json));
+        // }
+      })
+      .catch(response =>
+        getClientErrorObject(response).then(error => {
+          let message =
+            error.error ||
+            error.message ||
+            error.statusText ||
+            t('Unknown error');
+          if (message.includes('CSRF token')) {
+            message = t(COMMON_ERR_MESSAGES.SESSION_TIMED_OUT);
+          }
+          dispatch(textToSqlFailed(user_prompt_text, message, error.link, error.errors));
+        }),
+      );
+  }
+}
 export function runQuery(query) {
   return function (dispatch) {
     dispatch(startQuery(query));

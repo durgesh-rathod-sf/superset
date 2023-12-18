@@ -44,12 +44,15 @@ from superset.sqllab.exceptions import (
     SqlLabException,
 )
 from superset.sqllab.execution_context_convertor import ExecutionContextConvertor
+from superset.sqllab.openai_text2sql_strategy import OpenAIText2SqlStrategy
 from superset.sqllab.query_render import SqlQueryRenderImpl
 from superset.sqllab.schemas import (
     EstimateQueryCostSchema,
     ExecutePayloadSchema,
     FormatQueryPayloadSchema,
     QueryExecutionResponseSchema,
+    TextToSQLPayloadSchema,
+    TextToSQLResponseSchema,
     sql_lab_get_results_schema,
     SQLLabBootstrapSchema,
 )
@@ -82,6 +85,7 @@ class SqlLabRestApi(BaseSupersetApi):
     estimate_model_schema = EstimateQueryCostSchema()
     execute_model_schema = ExecutePayloadSchema()
     format_model_schema = FormatQueryPayloadSchema()
+    convert_text_to_sql_model_schema = TextToSQLPayloadSchema()
 
     apispec_parameter_schemas = {
         "sql_lab_get_results_schema": sql_lab_get_results_schema,
@@ -92,6 +96,8 @@ class SqlLabRestApi(BaseSupersetApi):
         ExecutePayloadSchema,
         QueryExecutionResponseSchema,
         SQLLabBootstrapSchema,
+        TextToSQLPayloadSchema,
+        TextToSQLResponseSchema,
     )
 
     @expose("/", methods=("GET",))
@@ -413,6 +419,81 @@ class SqlLabRestApi(BaseSupersetApi):
             )
             # return the execution result without special encoding
             return json_success(command_result["payload"], response_status)
+        except SqlLabException as ex:
+            payload = {"errors": [ex.to_dict()]}
+
+            response_status = (
+                403 if isinstance(ex, QueryIsForbiddenToAccessException) else ex.status
+            )
+            return self.response(response_status, **payload)
+
+    @expose("/text_to_sql/", methods=("POST",))
+    @protect()
+    @statsd_metrics
+    @requires_json
+    @event_logger.log_this_with_context(
+        action=lambda self, *args, **kwargs: f"{self.__class__.__name__}"
+        f".get_results",
+        log_to_statsd=False,
+    )
+    def convert_text_to_sql(self) -> FlaskResponse:
+        """Convert text to sql.
+        ---
+        post:
+          summary: Convert text to sql
+          requestBody:
+            description: User Prompt Text
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ConvertTextToSQLSchema'
+          responses:
+            200:
+              description: Query execution result
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/TextToSQLResponseSchema'
+            202:
+              description: Query execution result, query still running
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/TextToSQLResponseSchema'
+            400:
+              $ref: '#/components/responses/400'
+            401:
+              $ref: '#/components/responses/401'
+            403:
+              $ref: '#/components/responses/403'
+            404:
+              $ref: '#/components/responses/404'
+            500:
+              $ref: '#/components/responses/500'
+        """
+        try:
+            self.convert_text_to_sql_model_schema.load(request.json)
+        except ValidationError as error:
+            return self.response_400(message=error.messages)
+
+        try:
+            log_params = {
+                "user_agent": cast(Optional[str], request.headers.get("USER_AGENT"))
+            }
+            db_dump = ""
+            db_type = "Mysql"
+            db_version = "5"
+            text_to_sql_strategy = OpenAIText2SqlStrategy()
+            response = text_to_sql_strategy.execute(
+                self.convert_text_to_sql_model_schema.user_prompt_text,
+                db_dump,
+                db_type,
+                db_version,
+            )
+
+            # return the execution result without special encoding
+            return json_success({"sql_query": response}, 200)
         except SqlLabException as ex:
             payload = {"errors": [ex.to_dict()]}
 

@@ -41,6 +41,7 @@ import {
   getExtensionsRegistry,
   QueryResponse,
   Query,
+  SupersetClient,
 } from '@superset-ui/core';
 import type { QueryEditor, SqlLabRootState } from 'src/SqlLab/types';
 import type { DatabaseObject } from 'src/features/databases/types';
@@ -73,6 +74,7 @@ import {
   setActiveSouthPaneTab,
   updateSavedQuery,
   formatQuery,
+  textToSqlFailed,
 } from 'src/SqlLab/actions/sqlLab';
 import {
   STATE_TYPE_MAP,
@@ -109,6 +111,8 @@ import KeyboardShortcutButton, {
   KeyboardShortcut,
 } from '../KeyboardShortcutButton';
 import TextControl from 'src/explore/components/controls/TextControl';
+import { getClientErrorObject } from 'src/utils/getClientErrorObject';
+import COMMON_ERR_MESSAGES from 'src/utils/errorMessages';
 
 const bootstrapData = getBootstrapData();
 const scheduledQueriesConf = bootstrapData?.common?.conf?.SCHEDULED_QUERIES;
@@ -759,7 +763,31 @@ const SqlEditor: React.FC<Props> = ({
   };
   const generateSQL = ()=>{
     console.log('dlog - input box : ', document.querySelector('ai-assist-textbox-txt input'))
+    let userPromptText = (document.querySelector('ai-assist-textbox-txt input') as any).value
     onSqlChanged('SELECT * from ABC')
+    let postPayload = {user_prompt_text: userPromptText}
+    SupersetClient.post({
+      endpoint: `/api/v1/sqllab/text_to_sql`,
+      body: JSON.stringify(postPayload),
+      headers: { 'Content-Type': 'application/json' },
+      parseMethod: 'json-bigint',
+    })
+      .then(({ json }) => {
+       onSqlChanged(json.sql_query)
+      })
+      .catch(response =>
+        getClientErrorObject(response).then(error => {
+          let message =
+            error.error ||
+            error.message ||
+            error.statusText ||
+            t('Unknown error');
+          if (message.includes('CSRF token')) {
+            message = t(COMMON_ERR_MESSAGES.SESSION_TIMED_OUT);
+          }
+          dispatch(textToSqlFailed(userPromptText, message, error.link, error.errors));
+        }),
+      );
   }
   const queryPane = () => {
     const { aceEditorHeight, southPaneHeight } =
@@ -787,9 +815,9 @@ const SqlEditor: React.FC<Props> = ({
             />
           )}
           <span> this is editor section</span>
-          <div style={{display:'flex'}}>
+          <div className="ai-assist-textbox-txt" style={{display:'flex'}}>
           <TextControl
-                    className="ai-assist-textbox-txt"
+                    
                     controlId="ai-assist-textbox"
                     placeholder={t('Add query in natural human language')}
                   />
