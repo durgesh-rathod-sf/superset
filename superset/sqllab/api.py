@@ -473,7 +473,7 @@ class SqlLabRestApi(BaseSupersetApi):
               $ref: '#/components/responses/500'
         """
         try:
-            print('request.json: ', request.json)
+            print("request.json: ", request.json)
             print()
             self.convert_text_to_sql_model_schema.load(request.json)
         except ValidationError as error:
@@ -488,7 +488,7 @@ class SqlLabRestApi(BaseSupersetApi):
             db_version = "5"
             text_to_sql_strategy = OpenAIText2SqlStrategy()
             response = text_to_sql_strategy.execute(
-                self.convert_text_to_sql_model_schema.user_prompt_text,
+                request.json.get("user_prompt_text"),
                 db_dump,
                 db_type,
                 db_version,
