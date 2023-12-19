@@ -473,6 +473,8 @@ class SqlLabRestApi(BaseSupersetApi):
               $ref: '#/components/responses/500'
         """
         try:
+            print('request.json: ', request.json)
+            print()
             self.convert_text_to_sql_model_schema.load(request.json)
         except ValidationError as error:
             return self.response_400(message=error.messages)
