@@ -762,9 +762,7 @@ const SqlEditor: React.FC<Props> = ({
     );
   };
   const generateSQL = ()=>{
-    console.log('dlog - input box : ', document.querySelector('.ai-assist-textbox-txt input'))
     let userPromptText = (document.querySelector('.ai-assist-textbox-txt input') as any).value
-    onSqlChanged('SELECT * from ABC')
     let postPayload = {user_prompt_text: userPromptText}
     SupersetClient.post({
       endpoint: `/api/v1/sqllab/text_to_sql`,
@@ -814,8 +812,8 @@ const SqlEditor: React.FC<Props> = ({
               startQuery={startQuery}
             />
           )}
-          <span> this is editor section</span>
-          <div className="ai-assist-textbox-txt" style={{display:'flex'}}>
+          
+          <div className="ai-assist-textbox-txt" style={{display:'grid', marginBottom: '5px',gap:'5px',gridTemplateColumns:'1fr 100px'}}>
           <TextControl
                     
                     controlId="ai-assist-textbox"
