@@ -473,8 +473,6 @@ class SqlLabRestApi(BaseSupersetApi):
               $ref: '#/components/responses/500'
         """
         try:
-            print("request.json: ", request.json)
-            print()
             self.convert_text_to_sql_model_schema.load(request.json)
         except ValidationError as error:
             return self.response_400(message=error.messages)
@@ -493,9 +491,17 @@ class SqlLabRestApi(BaseSupersetApi):
                 db_type,
                 db_version,
             )
-
+            result = {"sql_query": response}
             # return the execution result without special encoding
-            return json_success({"sql_query": response}, 200)
+            return json_success(
+                json.dumps(
+                    result,
+                    default=utils.json_iso_dttm_ser,
+                    ignore_nan=True,
+                    encoding=None,
+                ),
+                200,
+            )
         except SqlLabException as ex:
             payload = {"errors": [ex.to_dict()]}
 
