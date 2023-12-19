@@ -814,19 +814,19 @@ const SqlEditor: React.FC<Props> = ({
           )}
           
           <div className="ai-assist-textbox-txt" style={{display:'grid', marginBottom: '5px',gap:'5px',gridTemplateColumns:'1fr 100px'}}>
-          <TextControl
-                    
-                    controlId="ai-assist-textbox"
-                    placeholder={t('Add query in natural human language')}
-                  />
-          <Button
-            buttonStyle="primary"
-            buttonSize="small"
-            onClick={generateSQL}
-            data-test="close-drill-by-modal"
-          >
-            {t('Generate')}
-          </Button>
+            <TextControl
+                      
+                      controlId="ai-assist-textbox"
+                      placeholder={t('Add query in natural human language')}
+                    />
+            <Button
+              buttonStyle="primary"
+              buttonSize="small"
+              onClick={generateSQL}
+              data-test="close-drill-by-modal"
+            >
+              {t('Generate')}
+            </Button>
           </div>
          
           <AceEditorWrapper
