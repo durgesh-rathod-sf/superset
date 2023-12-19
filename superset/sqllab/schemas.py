@@ -151,8 +151,15 @@ class SQLLabBootstrapSchema(Schema):
 
 
 class TextToSQLPayloadSchema(Schema):
-    user_prompt_text: str
+    user_prompt_text = fields.String(
+        required=True,
+        metadata={
+            "description": "Natural language query that needs to be converted to sql"
+        },
+    )
 
 
 class TextToSQLResponseSchema(Schema):
-    sql_query: str
+    sql_query = fields.String(
+        required=True, metadata={"description": "The generated output sql query"}
+    )
