@@ -762,8 +762,8 @@ const SqlEditor: React.FC<Props> = ({
     );
   };
   const generateSQL = ()=>{
-    console.log('dlog - input box : ', document.querySelector('ai-assist-textbox-txt input'))
-    let userPromptText = (document.querySelector('ai-assist-textbox-txt input') as any).value
+    console.log('dlog - input box : ', document.querySelector('.ai-assist-textbox-txt input'))
+    let userPromptText = (document.querySelector('.ai-assist-textbox-txt input') as any).value
     onSqlChanged('SELECT * from ABC')
     let postPayload = {user_prompt_text: userPromptText}
     SupersetClient.post({
