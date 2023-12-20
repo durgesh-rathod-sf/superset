@@ -489,8 +489,8 @@ class SqlLabRestApi(BaseSupersetApi):
                 "user_agent": cast(Optional[str], request.headers.get("USER_AGENT"))
             }
             try:
-                pk = "1"
-                schema_name = "public"
+                pk = request.json.get("database_id")
+                schema_name = request.json.get("schema_name")
                 force = False
                 database = DatabaseDAO.find_by_id(pk)
                 if not database:

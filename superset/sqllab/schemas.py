@@ -151,6 +151,8 @@ class SQLLabBootstrapSchema(Schema):
 
 
 class TextToSQLPayloadSchema(Schema):
+    database_id: str
+    schema_name: str
     user_prompt_text = fields.String(
         required=True,
         metadata={

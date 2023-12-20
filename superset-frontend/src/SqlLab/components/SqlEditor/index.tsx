@@ -766,7 +766,7 @@ const SqlEditor: React.FC<Props> = ({
     let userPromptText = (document.querySelector('.ai-assist-textbox-txt input') as any).value
     const qe = queryEditor;
     
-    let postPayload = {user_prompt_text: userPromptText, database_id:qe.dbId,schema:qe.schema}
+    let postPayload = {user_prompt_text: userPromptText, database_id:qe.dbId,schema_name:qe.schema}
     SupersetClient.post({
       endpoint: `/api/v1/sqllab/text_to_sql`,
       body: JSON.stringify(postPayload),
