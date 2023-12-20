@@ -19,6 +19,7 @@ from typing import Any, Optional, Union
 from sqlalchemy.engine.url import make_url, URL
 
 from superset.commands.database.exceptions import DatabaseInvalidError
+from superset.commands.database.tables import TablesDatabaseCommand
 
 
 def get_foreign_keys_metadata(
@@ -102,6 +103,51 @@ def get_table_metadata(
         "indexes": keys,
         "comment": table_comment,
     }
+
+
+def get_all_table_metadata(database: Any, pk, schema_name, force):
+    response_tables = []
+    command = TablesDatabaseCommand(pk, schema_name, force)
+    tables = command.run()
+    for table in tables:
+        table_name = table["value"]
+        table_type = table["type"]
+        keys = []
+        columns = database.get_columns(table_name, schema_name)
+        primary_key = database.get_pk_constraint(table_name, schema_name)
+        if primary_key and primary_key.get("constrained_columns"):
+            primary_key["column_names"] = primary_key.pop("constrained_columns")
+            primary_key["type"] = "pk"
+            keys += [primary_key]
+        foreign_keys = get_foreign_keys_metadata(database, table_name, schema_name)
+        indexes = get_indexes_metadata(database, table_name, schema_name)
+        keys += foreign_keys + indexes
+        payload_columns: list[dict[str, Any]] = []
+        table_comment = database.get_table_comment(table_name, schema_name)
+        for col in columns:
+            dtype = get_col_type(col)
+            payload_columns.append(
+                {
+                    "name": col["column_name"],
+                    "type": dtype.split("(")[0] if "(" in dtype else dtype,
+                    # "longType": dtype,
+                    # "keys": [
+                    #     k for k in keys if col["column_name"] in k["column_names"]
+                    # ],
+                    "comment": col.get("comment"),
+                }
+            )
+        response_tables.append(
+            {
+                "type": table_type,
+                "name": table_name,
+                "columns": payload_columns,
+                "primaryKey": primary_key,
+                "foreignKeys": foreign_keys,
+                "comment": table_comment,
+            }
+        )
+    return response_tables
 
 
 def make_url_safe(raw_url: Union[str, URL]) -> URL:

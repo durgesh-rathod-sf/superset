@@ -27,6 +27,11 @@ from flask_appbuilder.models.sqla.interface import SQLAInterface
 from marshmallow import ValidationError
 
 from superset import app, is_feature_enabled
+from superset.commands.database.exceptions import (
+    DatabaseNotFoundError,
+    DatabaseTablesUnexpectedError,
+)
+from superset.commands.database.tables import TablesDatabaseCommand
 from superset.commands.sql_lab.estimate import QueryEstimationCommand
 from superset.commands.sql_lab.execute import CommandResult, ExecuteSqlCommand
 from superset.commands.sql_lab.export import SqlResultExportCommand
@@ -34,6 +39,8 @@ from superset.commands.sql_lab.results import SqlExecutionResultsCommand
 from superset.constants import MODEL_API_RW_METHOD_PERMISSION_MAP
 from superset.daos.database import DatabaseDAO
 from superset.daos.query import QueryDAO
+from superset.databases.utils import get_all_table_metadata
+from superset.exceptions import SupersetException
 from superset.extensions import event_logger
 from superset.jinja_context import get_template_processor
 from superset.models.sql_lab import Query
@@ -481,8 +488,23 @@ class SqlLabRestApi(BaseSupersetApi):
             log_params = {
                 "user_agent": cast(Optional[str], request.headers.get("USER_AGENT"))
             }
-            db_dump = ""
-            db_type = "Mysql"
+            try:
+                pk = "1"
+                schema_name = "public"
+                force = False
+                database = DatabaseDAO.find_by_id(pk)
+                if not database:
+                    return self.response_404()
+                db_dump = get_all_table_metadata(database, pk, schema_name, force)
+                # return self.response(200, **response)
+            except DatabaseNotFoundError:
+                return self.response_404()
+            except SupersetException as ex:
+                return self.response(ex.status, message=ex.message)
+            except DatabaseTablesUnexpectedError as ex:
+                return self.response_422(ex.message)
+            # db_dump = ""
+            db_type = "postgres"
             db_version = "5"
             text_to_sql_strategy = OpenAIText2SqlStrategy()
             response = text_to_sql_strategy.execute(

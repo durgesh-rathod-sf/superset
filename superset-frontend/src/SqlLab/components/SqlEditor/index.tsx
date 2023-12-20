@@ -75,6 +75,7 @@ import {
   updateSavedQuery,
   formatQuery,
   textToSqlFailed,
+  getUpToDateQuery,
 } from 'src/SqlLab/actions/sqlLab';
 import {
   STATE_TYPE_MAP,
@@ -763,7 +764,9 @@ const SqlEditor: React.FC<Props> = ({
   };
   const generateSQL = ()=>{
     let userPromptText = (document.querySelector('.ai-assist-textbox-txt input') as any).value
-    let postPayload = {user_prompt_text: userPromptText}
+    const qe = queryEditor;
+    
+    let postPayload = {user_prompt_text: userPromptText, database_id:qe.dbId,schema:qe.schema}
     SupersetClient.post({
       endpoint: `/api/v1/sqllab/text_to_sql`,
       body: JSON.stringify(postPayload),

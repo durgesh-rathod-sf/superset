@@ -27,7 +27,7 @@ class OpenAIText2SqlStrategy:
         if prompt_text is None:
             raise ValueError(CONFIG["messages"]["empty_error_message"])
         system_message_content = CONFIG["messages"]["user_message"].format(
-            dbdump=db_dump, db_type=db_type, db_version=db_version
+            dbdump=str(db_dump), db_type=db_type, db_version=db_version
         )
         _system_messages = [
             {
