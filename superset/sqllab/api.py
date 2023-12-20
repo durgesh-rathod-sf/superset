@@ -39,7 +39,11 @@ from superset.commands.sql_lab.results import SqlExecutionResultsCommand
 from superset.constants import MODEL_API_RW_METHOD_PERMISSION_MAP
 from superset.daos.database import DatabaseDAO
 from superset.daos.query import QueryDAO
-from superset.databases.utils import get_all_table_metadata
+from superset.databases.utils import (
+    get_col_type,
+    get_foreign_keys_metadata,
+    get_indexes_metadata,
+)
 from superset.exceptions import SupersetException
 from superset.extensions import event_logger
 from superset.jinja_context import get_template_processor
@@ -495,7 +499,7 @@ class SqlLabRestApi(BaseSupersetApi):
                 database = DatabaseDAO.find_by_id(pk)
                 if not database:
                     return self.response_404()
-                db_dump = get_all_table_metadata(database, pk, schema_name, force)
+                db_dump = self.get_all_table_metadata(database, pk, schema_name, force)
                 # return self.response(200, **response)
             except DatabaseNotFoundError:
                 return self.response_404()
@@ -571,3 +575,47 @@ class SqlLabRestApi(BaseSupersetApi):
                 is_feature_enabled("SQLLAB_BACKEND_PERSISTENCE"),
             )
         return sql_json_executor
+
+    def get_all_table_metadata(self, database: Any, pk, schema_name, force):
+        response_tables = []
+        command = TablesDatabaseCommand(pk, schema_name, force)
+        tables = command.run()
+        for table in tables:
+            table_name = table["value"]
+            table_type = table["type"]
+            keys = []
+            columns = database.get_columns(table_name, schema_name)
+            primary_key = database.get_pk_constraint(table_name, schema_name)
+            if primary_key and primary_key.get("constrained_columns"):
+                primary_key["column_names"] = primary_key.pop("constrained_columns")
+                primary_key["type"] = "pk"
+                keys += [primary_key]
+            foreign_keys = get_foreign_keys_metadata(database, table_name, schema_name)
+            indexes = get_indexes_metadata(database, table_name, schema_name)
+            keys += foreign_keys + indexes
+            payload_columns: list[dict[str, Any]] = []
+            table_comment = database.get_table_comment(table_name, schema_name)
+            for col in columns:
+                dtype = get_col_type(col)
+                payload_columns.append(
+                    {
+                        "name": col["column_name"],
+                        "type": dtype.split("(")[0] if "(" in dtype else dtype,
+                        # "longType": dtype,
+                        # "keys": [
+                        #     k for k in keys if col["column_name"] in k["column_names"]
+                        # ],
+                        "comment": col.get("comment"),
+                    }
+                )
+            response_tables.append(
+                {
+                    "type": table_type,
+                    "name": table_name,
+                    "columns": payload_columns,
+                    "primaryKey": primary_key,
+                    "foreignKeys": foreign_keys,
+                    "comment": table_comment,
+                }
+            )
+        return response_tables
