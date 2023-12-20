@@ -580,7 +580,7 @@ class SqlLabRestApi(BaseSupersetApi):
         response_tables = []
         command = TablesDatabaseCommand(pk, schema_name, force)
         tables = command.run()
-        for table in tables:
+        for table in tables["result"]:
             table_name = table["value"]
             table_type = table["type"]
             keys = []
