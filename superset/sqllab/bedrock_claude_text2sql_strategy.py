@@ -5,10 +5,10 @@ import json
 from superset.sqllab.utils import json_file_to_dict
 
 
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+current_dir = os.path.dirname(__file__)
 
 
-CONFIG = json_file_to_dict(os.path.join(ROOT_DIR, "prompt-claude-config.json"))
+CONFIG = json_file_to_dict(os.path.join(current_dir, "prompt-claude-config.json"))
 
 
 class BedRockClaudeText2SqlStrategy:
