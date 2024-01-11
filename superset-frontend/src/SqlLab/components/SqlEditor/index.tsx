@@ -791,7 +791,7 @@ const SqlEditor: React.FC<Props> = ({
           
           <div className="ai-assist-textbox-txt" style={{display:'grid', marginBottom: '5px',gap:'5px',gridTemplateColumns:'1fr 100px'}}>
             <TextControl
-                      onChange={text=>setUserPrompt(text)}
+                      onChange={text=>{setUserPrompt(text)}}
                       controlId="ai-assist-textbox"
                       placeholder={t('Add query in natural human language')}
                     />
