@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 import pyarrow as pa
-
+import json
 from superset import db, is_feature_enabled
 from superset.common.db_query_status import QueryStatus
 from superset.daos.database import DatabaseDAO
@@ -122,3 +122,9 @@ def bootstrap_sqllab_data(user_id: int | None) -> dict[str, Any]:
         "databases": databases,
         "queries": queries,
     }
+
+
+def json_file_to_dict(path: str) -> dict:
+    with open(path, "r") as json_file:
+        parsed_json = json.load(json_file)
+    return parsed_json

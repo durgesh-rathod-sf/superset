@@ -113,7 +113,7 @@ export default class ChartPlugin<
     this.metadata = metadata;
     this.loadBuildQuery =
       (loadBuildQuery && sanitizeLoader(loadBuildQuery)) ||
-      (buildQuery && sanitizeLoader(() => buildQuery)) ||
+      (buildQuery && sanitizeLoader(() => buildQuery)) || 
       undefined;
     this.loadTransformProps = sanitizeLoader(
       loadTransformProps ?? (() => transformProps),
