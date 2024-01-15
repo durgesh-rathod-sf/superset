@@ -293,6 +293,7 @@ export function textToSqlFailed(user_promp_text, msg, link, errors) {
         errorType,
       ];
       messages.forEach(message => {
+        
         dispatch(
           logEvent(LOG_ACTIONS_SQLLAB_TEXT_TO_SQL_FAILED_QUERY, {
             ...eventData,
@@ -1035,31 +1036,35 @@ export function runTablePreviewQuery(newTable) {
 export function convertTextToSql(userPrompt, queryEditor,setConvertTextToSqlDisabled){
   return function (dispatch) {
     let postPayload = {user_prompt_text: userPrompt, database_id:queryEditor.dbId,schema_name:queryEditor.schema}
-    SupersetClient.post({
-      endpoint: `/api/v1/sqllab/text_to_sql`,
-      body: JSON.stringify(postPayload),
-      headers: { 'Content-Type': 'application/json' },
-      parseMethod: 'json-bigint',
-    })
-      .then(({ json }) => {
-        setConvertTextToSqlDisabled(false);
-        dispatch(queryEditorSetSql(queryEditor,json.sql_query));
+    if(!queryEditor.dbId || !queryEditor.schema){
+      dispatch(addInfoToast('Please select database and schema'))
+    } else {
+      SupersetClient.post({
+        endpoint: `/api/v1/sqllab/text_to_sql`,
+        body: JSON.stringify(postPayload),
+        headers: { 'Content-Type': 'application/json' },
+        parseMethod: 'json-bigint',
       })
-      .catch(response =>{
+        .then(({ json }) => {
           setConvertTextToSqlDisabled(false);
-          getClientErrorObject(response).then(error => {
-            let message =
-              error.error ||
-              error.message ||
-              error.statusText ||
-              t('Unknown error');
-            if (message.includes('CSRF token')) {
-              message = t(COMMON_ERR_MESSAGES.SESSION_TIMED_OUT);
-            }
-            dispatch(textToSqlFailed(userPrompt, message, error.link, error.errors));
-          })
-        },
-      );
+          dispatch(queryEditorSetSql(queryEditor,json.sql_query));
+        })
+        .catch(response =>{
+            setConvertTextToSqlDisabled(false);
+            getClientErrorObject(response).then(error => {
+              let message =
+                error.error ||
+                error.message ||
+                error.statusText ||
+                t('Unknown error');
+              if (message.includes('CSRF token')) {
+                message = t(COMMON_ERR_MESSAGES.SESSION_TIMED_OUT);
+              }
+              dispatch(textToSqlFailed(userPrompt, message, error.link, error.errors));
+            })
+          },
+        );
+    }
   }
 }
 export function syncTable(table, tableMetadata) {
