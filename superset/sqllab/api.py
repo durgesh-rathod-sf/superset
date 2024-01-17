@@ -17,7 +17,7 @@
 import logging
 from typing import Any, cast, Optional
 from urllib import parse
-
+import os
 import simplejson as json
 import sqlparse
 from flask import request, Response
@@ -49,7 +49,9 @@ from superset.extensions import event_logger
 from superset.jinja_context import get_template_processor
 from superset.models.sql_lab import Query
 from superset.sql_lab import get_sql_results
-from superset.sqllab.bedrock_claude_text2sql_strategy import BedRockClaudeText2SqlStrategy
+from superset.sqllab.bedrock_claude_text2sql_strategy import (
+    BedRockClaudeText2SqlStrategy,
+)
 from superset.sqllab.command_status import SqlJsonExecutionStatus
 from superset.sqllab.exceptions import (
     QueryIsForbiddenToAccessException,
@@ -507,12 +509,14 @@ class SqlLabRestApi(BaseSupersetApi):
                 return self.response(ex.status, message=ex.message)
             except DatabaseTablesUnexpectedError as ex:
                 return self.response_422(ex.message)
-            
-            # text_to_sql_strategy = OpenAIText2SqlStrategy()
-            text_to_sql_strategy = BedRockClaudeText2SqlStrategy()
+            inference_provider = os.environ.get("INFERENCE_PROVIDER") or "openai"
+            text_to_sql_strategy = None
+            if inference_provider == "openai":
+                text_to_sql_strategy = OpenAIText2SqlStrategy()
+            else:
+                text_to_sql_strategy = BedRockClaudeText2SqlStrategy()
             response = text_to_sql_strategy.execute(
-                request.json.get("user_prompt_text"),
-                db_dump
+                request.json.get("user_prompt_text"), db_dump
             )
             result = {"sql_query": response}
             # return the execution result without special encoding

@@ -22,7 +22,11 @@ class OpenAIText2SqlStrategy:
         )
 
     def execute(
-        self, prompt_text: str, db_dump: str, db_type: str, db_version: str
+        self,
+        prompt_text: str,
+        db_dump: str,
+        db_type: str = "postgres",
+        db_version: str = "8",
     ) -> str:
         if prompt_text is None:
             raise ValueError(CONFIG["messages"]["empty_error_message"])
