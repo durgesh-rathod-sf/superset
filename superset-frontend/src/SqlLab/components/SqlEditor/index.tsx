@@ -73,6 +73,7 @@ import {
   setActiveSouthPaneTab,
   updateSavedQuery,
   formatQuery,
+  convertTextToSql,
 } from 'src/SqlLab/actions/sqlLab';
 import {
   STATE_TYPE_MAP,
@@ -108,6 +109,7 @@ import KeyboardShortcutButton, {
   KEY_MAP,
   KeyboardShortcut,
 } from '../KeyboardShortcutButton';
+import TextControl from 'src/explore/components/controls/TextControl';
 
 const bootstrapData = getBootstrapData();
 const scheduledQueriesConf = bootstrapData?.common?.conf?.SCHEDULED_QUERIES;
@@ -263,7 +265,8 @@ const SqlEditor: React.FC<Props> = ({
       hideLeftBar,
     };
   }, shallowEqual);
-
+  const [userPrompt, setUserPrompt] = useState('')
+  const [convertTextToSqlDisabled, setConvertTextToSqlDisabled] = useState(false)
   const [height, setHeight] = useState(0);
   const [autorun, setAutorun] = useState(queryEditor.autorun);
   const [ctas, setCtas] = useState('');
@@ -756,7 +759,10 @@ const SqlEditor: React.FC<Props> = ({
       </StyledToolbar>
     );
   };
-
+  const generateSQL = () => {
+    setConvertTextToSqlDisabled(true)
+    dispatch(convertTextToSql(userPrompt, queryEditor, setConvertTextToSqlDisabled.bind(this)))
+  }
   const queryPane = () => {
     const { aceEditorHeight, southPaneHeight } =
       getAceEditorAndSouthPaneHeights(height, northPercent, southPercent);
@@ -782,6 +788,24 @@ const SqlEditor: React.FC<Props> = ({
               startQuery={startQuery}
             />
           )}
+          
+          <div className="ai-assist-textbox-txt" style={{display:'grid', marginBottom: '5px',gap:'5px',gridTemplateColumns:'1fr 100px'}}>
+            <TextControl
+                      onChange={text=>{setUserPrompt(text)}}
+                      controlId="ai-assist-textbox"
+                      placeholder={t('Add query in natural human language')}
+                    />
+            <Button
+              buttonStyle="primary"
+              buttonSize="small"
+              onClick={generateSQL}
+              data-test="close-drill-by-modal"
+              disabled = {convertTextToSqlDisabled}
+            >
+              {t('Generate')}
+            </Button>
+          </div>
+         
           <AceEditorWrapper
             autocomplete={autocompleteEnabled}
             onBlur={onSqlChanged}

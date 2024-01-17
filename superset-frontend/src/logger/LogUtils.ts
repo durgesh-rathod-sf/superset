@@ -62,6 +62,8 @@ export const LOG_ACTIONS_CHART_DOWNLOAD_AS_JSON = 'chart_download_as_json';
 export const LOG_ACTIONS_SQLLAB_WARN_LOCAL_STORAGE_USAGE =
   'sqllab_warn_local_storage_usage';
 export const LOG_ACTIONS_SQLLAB_FETCH_FAILED_QUERY =
+  'sqllab_text_to_sql_failed_query';
+export const LOG_ACTIONS_SQLLAB_TEXT_TO_SQL_FAILED_QUERY =
   'sqllab_fetch_failed_query';
 export const LOG_ACTIONS_DRILL_BY_MODAL_OPENED = 'drill_by_modal_opened';
 export const LOG_ACTIONS_FURTHER_DRILL_BY = 'further_drill_by';
@@ -77,6 +79,7 @@ export const LOG_EVENT_TYPE_TIMING = new Set([
   LOG_ACTIONS_RENDER_CHART,
   LOG_ACTIONS_HIDE_BROWSER_TAB,
   LOG_ACTIONS_SQLLAB_FETCH_FAILED_QUERY,
+  LOG_ACTIONS_SQLLAB_TEXT_TO_SQL_FAILED_QUERY
 ]);
 export const LOG_EVENT_TYPE_USER = new Set([
   LOG_ACTIONS_MOUNT_DASHBOARD,
