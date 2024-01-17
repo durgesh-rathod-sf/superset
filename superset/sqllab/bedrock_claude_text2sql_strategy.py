@@ -34,8 +34,12 @@ class BedRockClaudeText2SqlStrategy:
     ) -> str:
         if prompt_text is None:
             raise ValueError(CONFIG["messages"]["empty_error_message"])
+        output_tag_name = "sql-query"
         system_message_content = CONFIG["messages"]["user_message"].format(
-            dbdump=str(db_dump), db_type=db_type, db_version=db_version
+            dbdump=str(db_dump),
+            db_type=db_type,
+            db_version=db_version,
+            output_tag_name=output_tag_name,
         )
         prompt_text = f"{system_message_content} <prompt>{prompt_text}</prompt>"
 
@@ -55,4 +59,27 @@ class BedRockClaudeText2SqlStrategy:
         answer = json.loads(answer)
         answer = answer["completion"].replace("\n", " ")
 
-        return answer
+        return self.extract_content_between_tags(text=answer, start_tag=output_tag_name)
+
+    def extract_content_between_tags(self, text, start_tag):
+        """
+        Extracts content between the specified start and end tags.
+
+        Parameters:
+            text (str): The text containing the content between tags.
+            start_tag (str): The start tag.
+
+        Returns:
+            str: The content between the specified start and end tags.
+        """
+
+        end_tag = f"</{start_tag}>"
+        start_tag = f"<{start_tag}>"
+
+        start_index = text.find(start_tag)
+        end_index = text.find(end_tag)
+
+        if start_index != -1 and end_index != -1:
+            return text[start_index + len(start_tag) : end_index].strip()
+        else:
+            return text
