@@ -17,7 +17,7 @@
 import logging
 from typing import Any, cast, Optional
 from urllib import parse
-
+import os
 import simplejson as json
 import sqlparse
 from flask import request, Response
@@ -27,6 +27,11 @@ from flask_appbuilder.models.sqla.interface import SQLAInterface
 from marshmallow import ValidationError
 
 from superset import app, is_feature_enabled
+from superset.commands.database.exceptions import (
+    DatabaseNotFoundError,
+    DatabaseTablesUnexpectedError,
+)
+from superset.commands.database.tables import TablesDatabaseCommand
 from superset.commands.sql_lab.estimate import QueryEstimationCommand
 from superset.commands.sql_lab.execute import CommandResult, ExecuteSqlCommand
 from superset.commands.sql_lab.export import SqlResultExportCommand
@@ -34,22 +39,34 @@ from superset.commands.sql_lab.results import SqlExecutionResultsCommand
 from superset.constants import MODEL_API_RW_METHOD_PERMISSION_MAP
 from superset.daos.database import DatabaseDAO
 from superset.daos.query import QueryDAO
+from superset.databases.utils import (
+    get_col_type,
+    get_foreign_keys_metadata,
+    get_indexes_metadata,
+)
+from superset.exceptions import SupersetException
 from superset.extensions import event_logger
 from superset.jinja_context import get_template_processor
 from superset.models.sql_lab import Query
 from superset.sql_lab import get_sql_results
+from superset.sqllab.bedrock_claude_text2sql_strategy import (
+    BedRockClaudeText2SqlStrategy,
+)
 from superset.sqllab.command_status import SqlJsonExecutionStatus
 from superset.sqllab.exceptions import (
     QueryIsForbiddenToAccessException,
     SqlLabException,
 )
 from superset.sqllab.execution_context_convertor import ExecutionContextConvertor
+from superset.sqllab.openai_text2sql_strategy import OpenAIText2SqlStrategy
 from superset.sqllab.query_render import SqlQueryRenderImpl
 from superset.sqllab.schemas import (
     EstimateQueryCostSchema,
     ExecutePayloadSchema,
     FormatQueryPayloadSchema,
     QueryExecutionResponseSchema,
+    TextToSQLPayloadSchema,
+    TextToSQLResponseSchema,
     sql_lab_get_results_schema,
     SQLLabBootstrapSchema,
 )
@@ -82,6 +99,7 @@ class SqlLabRestApi(BaseSupersetApi):
     estimate_model_schema = EstimateQueryCostSchema()
     execute_model_schema = ExecutePayloadSchema()
     format_model_schema = FormatQueryPayloadSchema()
+    convert_text_to_sql_model_schema = TextToSQLPayloadSchema()
 
     apispec_parameter_schemas = {
         "sql_lab_get_results_schema": sql_lab_get_results_schema,
@@ -92,6 +110,8 @@ class SqlLabRestApi(BaseSupersetApi):
         ExecutePayloadSchema,
         QueryExecutionResponseSchema,
         SQLLabBootstrapSchema,
+        TextToSQLPayloadSchema,
+        TextToSQLResponseSchema,
     )
 
     @expose("/", methods=("GET",))
@@ -421,6 +441,102 @@ class SqlLabRestApi(BaseSupersetApi):
             )
             return self.response(response_status, **payload)
 
+    @expose("/text_to_sql/", methods=("POST",))
+    @protect()
+    @statsd_metrics
+    @requires_json
+    @event_logger.log_this_with_context(
+        action=lambda self, *args, **kwargs: f"{self.__class__.__name__}"
+        f".get_results",
+        log_to_statsd=False,
+    )
+    def convert_text_to_sql(self) -> FlaskResponse:
+        """Convert text to sql.
+        ---
+        post:
+          summary: Convert text to sql
+          requestBody:
+            description: User Prompt Text
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ConvertTextToSQLSchema'
+          responses:
+            200:
+              description: Query execution result
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/TextToSQLResponseSchema'
+            202:
+              description: Query execution result, query still running
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/TextToSQLResponseSchema'
+            400:
+              $ref: '#/components/responses/400'
+            401:
+              $ref: '#/components/responses/401'
+            403:
+              $ref: '#/components/responses/403'
+            404:
+              $ref: '#/components/responses/404'
+            500:
+              $ref: '#/components/responses/500'
+        """
+        try:
+            self.convert_text_to_sql_model_schema.load(request.json)
+        except ValidationError as error:
+            return self.response_400(message=error.messages)
+
+        try:
+            log_params = {
+                "user_agent": cast(Optional[str], request.headers.get("USER_AGENT"))
+            }
+            try:
+                pk = int(request.json.get("database_id"))
+                schema_name = request.json.get("schema_name")
+                force = False
+                database = DatabaseDAO.find_by_id(pk)
+                if not database:
+                    return self.response_404()
+                db_dump = self.get_all_table_metadata(database, pk, schema_name, force)
+            except DatabaseNotFoundError:
+                return self.response_404()
+            except SupersetException as ex:
+                return self.response(ex.status, message=ex.message)
+            except DatabaseTablesUnexpectedError as ex:
+                return self.response_422(ex.message)
+            inference_provider = os.environ.get("INFERENCE_PROVIDER") or "openai"
+            text_to_sql_strategy = None
+            if inference_provider == "openai":
+                text_to_sql_strategy = OpenAIText2SqlStrategy()
+            else:
+                text_to_sql_strategy = BedRockClaudeText2SqlStrategy()
+            response = text_to_sql_strategy.execute(
+                request.json.get("user_prompt_text"), db_dump
+            )
+            result = {"sql_query": response}
+            # return the execution result without special encoding
+            return json_success(
+                json.dumps(
+                    result,
+                    default=utils.json_iso_dttm_ser,
+                    ignore_nan=True,
+                    encoding=None,
+                ),
+                200,
+            )
+        except SqlLabException as ex:
+            payload = {"errors": [ex.to_dict()]}
+
+            response_status = (
+                403 if isinstance(ex, QueryIsForbiddenToAccessException) else ex.status
+            )
+            return self.response(response_status, **payload)
+
     @staticmethod
     def _create_sql_json_command(
         execution_context: SqlJsonExecutionContext, log_params: Optional[dict[str, Any]]
@@ -460,3 +576,47 @@ class SqlLabRestApi(BaseSupersetApi):
                 is_feature_enabled("SQLLAB_BACKEND_PERSISTENCE"),
             )
         return sql_json_executor
+
+    def get_all_table_metadata(self, database: Any, pk, schema_name, force):
+        response_tables = []
+        command = TablesDatabaseCommand(pk, schema_name, force)
+        tables = command.run()
+        for table in tables["result"]:
+            table_name = table["value"]
+            table_type = table["type"]
+            keys = []
+            columns = database.get_columns(table_name, schema_name)
+            primary_key = database.get_pk_constraint(table_name, schema_name)
+            if primary_key and primary_key.get("constrained_columns"):
+                primary_key["column_names"] = primary_key.pop("constrained_columns")
+                primary_key["type"] = "pk"
+                keys += [primary_key]
+            foreign_keys = get_foreign_keys_metadata(database, table_name, schema_name)
+            indexes = get_indexes_metadata(database, table_name, schema_name)
+            keys += foreign_keys + indexes
+            payload_columns: list[dict[str, Any]] = []
+            table_comment = database.get_table_comment(table_name, schema_name)
+            for col in columns:
+                dtype = get_col_type(col)
+                payload_columns.append(
+                    {
+                        "name": col["column_name"],
+                        "type": dtype.split("(")[0] if "(" in dtype else dtype,
+                        # "longType": dtype,
+                        # "keys": [
+                        #     k for k in keys if col["column_name"] in k["column_names"]
+                        # ],
+                        "comment": col.get("comment"),
+                    }
+                )
+            response_tables.append(
+                {
+                    "type": table_type,
+                    "name": table_name,
+                    "columns": payload_columns,
+                    "primaryKey": primary_key,
+                    "foreignKeys": foreign_keys,
+                    "comment": table_comment,
+                }
+            )
+        return response_tables

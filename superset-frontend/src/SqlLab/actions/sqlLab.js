@@ -280,6 +280,32 @@ export function clearQueryResults(query) {
   return { type: CLEAR_QUERY_RESULTS, query };
 }
 
+
+export function textToSqlFailed(user_promp_text, msg, link, errors) {
+  return function (dispatch) {
+    const eventData = {
+      has_err: true,
+      start_offset: now(),
+      ts: new Date().getTime(),
+    };
+    errors?.forEach(({ error_type: errorType, extra }) => {
+      const messages = extra?.issue_codes?.map(({ message }) => message) || [
+        errorType,
+      ];
+      messages.forEach(message => {
+        
+        dispatch(
+          logEvent(LOG_ACTIONS_SQLLAB_TEXT_TO_SQL_FAILED_QUERY, {
+            ...eventData,
+            error_type: errorType,
+            error_details: message,
+          }),
+        );
+      });
+    });
+
+  };
+}
 export function removeDataPreview(table) {
   return { type: REMOVE_DATA_PREVIEW, table };
 }
@@ -1007,7 +1033,40 @@ export function runTablePreviewQuery(newTable) {
     return Promise.resolve();
   };
 }
-
+export function convertTextToSql(userPrompt, queryEditor,setConvertTextToSqlDisabled){
+  return function (dispatch) {
+    let postPayload = {user_prompt_text: userPrompt, database_id:queryEditor.dbId,schema_name:queryEditor.schema}
+    if(!queryEditor.dbId || !queryEditor.schema){
+      dispatch(addInfoToast('Please select database and schema'))
+    } else {
+      SupersetClient.post({
+        endpoint: `/api/v1/sqllab/text_to_sql`,
+        body: JSON.stringify(postPayload),
+        headers: { 'Content-Type': 'application/json' },
+        parseMethod: 'json-bigint',
+      })
+        .then(({ json }) => {
+          setConvertTextToSqlDisabled(false);
+          dispatch(queryEditorSetSql(queryEditor,json.sql_query));
+        })
+        .catch(response =>{
+            setConvertTextToSqlDisabled(false);
+            getClientErrorObject(response).then(error => {
+              let message =
+                error.error ||
+                error.message ||
+                error.statusText ||
+                t('Unknown error');
+              if (message.includes('CSRF token')) {
+                message = t(COMMON_ERR_MESSAGES.SESSION_TIMED_OUT);
+              }
+              dispatch(textToSqlFailed(userPrompt, message, error.link, error.errors));
+            })
+          },
+        );
+    }
+  }
+}
 export function syncTable(table, tableMetadata) {
   return function (dispatch) {
     const sync = isFeatureEnabled(FeatureFlag.SQLLAB_BACKEND_PERSISTENCE)

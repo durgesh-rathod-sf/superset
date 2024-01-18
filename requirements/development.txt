@@ -18,7 +18,7 @@ asttokens==2.2.1
     # via stack-data
 backcall==0.2.0
     # via ipython
-boto3==1.26.130
+boto3==1.28.58
     # via tabulator
 botocore==1.29.130
     # via
@@ -135,6 +135,6 @@ unicodecsv==0.14.1
     #   tabulator
 xlrd==2.0.1
     # via tabulator
-
+farm-haystack==1.19.0
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
