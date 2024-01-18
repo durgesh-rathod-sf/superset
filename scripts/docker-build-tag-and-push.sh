@@ -10,13 +10,13 @@ set -e
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
 : "${IMAGE_TAG:-$IMAGE_TAG}"
 
-ECR_REGISTRY_ENDPOINT="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+ECR_REGISTRY_ENDPOINT="public.ecr.aws/m3p0d3m0"
 IMAGE_NAME="$ECR_REGISTRY_ENDPOINT/superset-base"
 
 echo "Account: $AWS_ACCOUNT_ID"
 
 printf "\nECR Login...\n"
-aws ecr get-login-password \
+aws ecr-public get-login-password \
   --region $AWS_REGION \
   | docker login \
       --username AWS \

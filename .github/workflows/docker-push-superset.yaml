@@ -4,7 +4,7 @@ name: Docker Push - Superset
 on:            # yamllint disable-line rule:truthy
   push:
     branches:
-      - feat-text-to-sql  # TODO - temporary
+      - feat-text-to-sql  #  TODO - temporary
 
 #  workflow_run:
 #    workflows: ["Tag"]
@@ -45,4 +45,4 @@ jobs:
         run: |
           export IMAGE_TAG=${{ steps.vars.outputs.git_tag }}
           export ENVIRONMENT=poc
-          ./scrips/docker-build-tag-and-push.sh
+          ./scripts/docker-build-tag-and-push.sh
