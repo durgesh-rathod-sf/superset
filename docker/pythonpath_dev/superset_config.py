@@ -25,6 +25,9 @@ import os
 
 from celery.schedules import crontab
 from flask_caching.backends.filesystemcache import FileSystemCache
+from flask_appbuilder.security.manager import AUTH_OAUTH
+from custom_sso_security_manager import CustomSsoSecurityManager
+
 
 logger = logging.getLogger()
 
@@ -113,3 +116,32 @@ try:
     )
 except ImportError:
     logger.info("Using default Docker config...")
+
+
+AUTH_TYPE = AUTH_OAUTH
+CUSTOM_SECURITY_MANAGER = CustomSsoSecurityManager
+
+AUTH_USER_REGISTRATION = True
+AUTH_USER_REGISTRATION_ROLE = os.getenv("SSO_USER_REGISTRATION_ROLE")
+AUTH_ROLE_ADMIN = "Admin"
+
+OKTA_BASE_URL = os.getenv("OKTA_BASE_URL")
+OAUTH_PROVIDERS = [
+    {
+        "name": "okta",
+        "token_key": "access_token",
+        "icon": "fa-circle-o",
+        "remote_app": {
+            "client_id": os.getenv("OKTA_CLIENT_ID"),
+            "client_secret": os.getenv("OKTA_CLIENT_SECRET"),
+            "client_kwargs": {"scope": "openid profile email"},
+            "access_token_method": "POST",
+            "api_base_url": f"{OKTA_BASE_URL}/oauth2/v1/",
+            "access_token_url": f"{OKTA_BASE_URL}/oauth2/v1/token",
+            "authorize_url": f"{OKTA_BASE_URL}/oauth2/v1/authorize",
+            "server_metadata_url": f"{OKTA_BASE_URL}/.well-known/openid-configuration",
+            'request_token_url': None,
+        },
+    },
+]
+
