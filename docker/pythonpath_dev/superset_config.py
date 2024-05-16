@@ -116,3 +116,4 @@ except ImportError:
 
 
 APP_NAME = "Sourcefuse"
+LOGO_TOOLTIP = "Sourcefuse"
